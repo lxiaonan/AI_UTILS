@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL 优化详情</title>
+    <link rel="icon" type="image/png" href="/logo/ai%E5%9B%BE%E6%A0%87.png">
+    <link rel="apple-touch-icon" href="/logo/ai%E5%9B%BE%E6%A0%87.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body { background: radial-gradient(circle at 50% 20%, #1e1b4b 0%, #05060a 55%, #000 100%); color: #e2e8f0; min-height: 100vh; }
+        .glass-nav { background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(18px); border-bottom: 1px solid rgba(148, 163, 184, 0.12); }
+        .glass-panel { background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(12px); border: 1px solid rgba(148, 163, 184, 0.15); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); transition: all 0.3s ease; }
+        .glass-panel:hover { border-color: rgba(99, 102, 241, 0.3); box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4); }
+        
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 { font-weight: bold; margin-top: 1rem; margin-bottom: 0.5rem; color: #e2e8f0; }
+        .markdown-body p { margin-bottom: 0.5rem; color: #cbd5e1; }
+        .markdown-body pre { background: #0f172a; color: #f8f8f2; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin-bottom: 1rem; border: 1px solid rgba(148, 163, 184, 0.1); }
+        .markdown-body code { font-family: monospace; background: rgba(55, 65, 81, 0.5); color: #93c5fd; padding: 0.2rem 0.4rem; border-radius: 0.25rem; }
+        .markdown-body pre code { background: transparent; color: inherit; padding: 0; }
+        .markdown-body ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1rem; color: #cbd5e1; }
+        
+        .dark-box .markdown-body code { background: #1e293b; color: #818cf8; }
+        .dark-box .markdown-body pre { background: #0b0f19; }
+    </style>
+</head>
+<body class="font-sans flex flex-col">
+
+<nav class="glass-nav sticky top-0 z-50 mb-6">
+    <div class="max-w-7xl mx-auto px-4">
+        <div class="flex space-x-8 h-16 items-center">
+            <a href="/" class="flex items-center" title="AI Platform">
+                <img src="/logo/ai%E5%9B%BE%E6%A0%87.png" class="w-9 h-9 rounded-2xl shadow-[0_0_24px_rgba(99,102,241,0.55)] ring-1 ring-indigo-400/30" alt="AI">
+            </a>
+            <a href="javascript:history.back()" class="text-slate-400 hover:text-indigo-400 flex items-center transition">
+                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                返回历史
+            </a>
+            <span class="text-slate-600">|</span>
+            <span class="font-bold text-slate-200">优化详情</span>
+        </div>
+    </div>
+</nav>
+
+<div class="max-w-5xl mx-auto pb-10 px-4 flex-grow w-full">
+    <div id="loadingState" class="text-center py-20 text-slate-400">
+        <svg class="animate-spin h-10 w-10 mx-auto mb-4 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        正在加载详情数据...
+    </div>
+
+    <div id="errorState" class="hidden text-center py-20 text-rose-500">
+        <p class="text-xl font-bold mb-2">获取详情失败</p>
+        <p id="errorMsg"></p>
+    </div>
+
+    <div id="detailContent" class="hidden">
+        <!-- 头部信息 -->
+        <div class="glass-panel rounded-3xl p-6 relative overflow-hidden group mb-8">
+            <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000 pointer-events-none"></div>
+            <div class="flex flex-wrap justify-between items-start mb-6 relative z-10">
+                <div>
+                    <h2 class="text-3xl font-extrabold text-slate-200 mb-3">诊断报告</h2>
+                    <div class="flex space-x-4 text-sm text-slate-400">
+                        <span class="flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span id="createTime"></span></span>
+                        <span class="flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg><span id="dbTypeBadge" class="bg-indigo-900/40 border border-indigo-500/30 text-indigo-300 px-2 py-0.5 rounded"></span></span>
+                        <span class="flex items-center"><svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg><span id="modelName"></span></span>
+                    </div>
+                </div>
+                <div class="text-right mt-4 sm:mt-0 bg-indigo-900/30 px-6 py-4 rounded-2xl border border-indigo-500/30 shadow-[0_0_15px_rgba(99,102,241,0.15)]">
+                    <p class="text-xs text-indigo-300 font-bold mb-1">AI 综合评分</p>
+                    <div class="text-4xl font-extrabold text-indigo-400 drop-shadow-md" id="scoreDisplay">--/100</div>
+                </div>
+            </div>
+
+            <div class="mt-6 border-t border-slate-700/50 pt-6 relative z-10">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-sm font-bold text-slate-400">原始 SQL：</h3>
+                    <button onclick="copyToClipboard('userSqlDisplay', this)" class="text-xs text-indigo-400 hover:text-indigo-300 bg-indigo-900/30 hover:bg-indigo-900/50 px-3 py-1.5 rounded-lg transition-all border border-indigo-500/30 flex items-center btn-glow">
+                        <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                        复制 SQL
+                    </button>
+                </div>
+                <pre class="bg-slate-900/80 p-5 rounded-xl border border-slate-700 text-sm font-mono text-slate-300 overflow-auto max-h-[300px]" id="userSqlDisplay"></pre>
+            </div>
+        </div>
+
+        <!-- 分析结果区 -->
+        <div class="glass-panel rounded-3xl p-6 border border-slate-700/50">
+            <h2 class="text-2xl font-bold mb-6 flex items-center text-slate-200"><span class="mr-3">📊</span> 深度分析</h2>
+            
+            <div id="modularResult" class="space-y-6">
+                <div id="reasoningBox" class="markdown-body text-sm bg-slate-900/50 p-5 rounded-2xl border border-slate-700/50 hidden"></div>
+                
+                <div class="bg-slate-800/60 border border-slate-700 p-5 rounded-2xl shadow-sm hidden" id="scoreDetailWrapper">
+                    <h3 class="text-slate-200 font-bold mb-3 flex items-center">📈 评分详情</h3>
+                    <div id="scoreDetailBox" class="markdown-body text-sm"></div>
+                </div>
+
+                <div class="bg-rose-900/10 border border-rose-900/30 p-5 rounded-2xl shadow-sm hidden" id="analysisWrapper">
+                    <h3 class="text-rose-400 font-bold mb-3 flex items-center">❌ 问题分析</h3>
+                    <div id="analysisBox" class="markdown-body text-sm text-rose-200"></div>
+                </div>
+
+                <div class="bg-emerald-900/10 border border-emerald-900/30 p-5 rounded-2xl shadow-sm hidden" id="suggestWrapper">
+                    <h3 class="text-emerald-400 font-bold mb-3 flex items-center">✅ 优化建议</h3>
+                    <div id="suggestBox" class="markdown-body text-sm text-emerald-200"></div>
+                </div>
+
+                <div class="bg-slate-900 p-5 rounded-2xl shadow-inner border border-slate-800 dark-box hidden" id="sqlWrapper">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-indigo-300 font-bold flex items-center">💻 优化后 SQL</h3>
+                        <button onclick="copyToClipboard('sqlBox', this)" class="text-xs text-indigo-400 hover:text-indigo-300 bg-indigo-900/30 hover:bg-indigo-900/50 px-3 py-1.5 rounded-lg transition-all border border-indigo-500/30 flex items-center btn-glow">
+                            <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            复制 SQL
+                        </button>
+                    </div>
+                    <div id="sqlBox" class="markdown-body text-sm text-slate-200 overflow-auto max-h-[400px]"></div>
+                </div>
+            </div>
+
+            <!-- AI 详细分析 (兜底展示) -->
+            <div id="aiAnalysisBox" class="markdown-body text-sm text-slate-300 bg-slate-800/60 p-6 rounded-xl border border-slate-700 hidden mt-4">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 获取 URL 参数中的 id
+    const urlParams = new URLSearchParams(window.location.search);
+    const recordId = urlParams.get('id');
+
+    if (!recordId) {
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('errorState').classList.remove('hidden');
+        document.getElementById('errorMsg').innerText = '缺少记录 ID 参数';
+    } else {
+        loadDetail(recordId);
+    }
+
+    async function loadDetail(id) {
+        try {
+            const res = await fetch(`/api/sql/history/${id}`);
+            if (res.status === 401) {
+                sessionStorage.setItem('redirectAfterLogin', window.location.pathname + window.location.search);
+                window.location.href = '/login.html';
+                return;
+            }
+            if (!res.ok) throw new Error('未找到该记录');
+            const data = await res.json();
+            
+            if (!data) throw new Error('未找到该记录');
+
+            // 渲染基本信息
+            document.getElementById('createTime').innerText = new Date(data.createTime).toLocaleString();
+            document.getElementById('dbTypeBadge').innerText = (data.dbType || '未知').toUpperCase();
+            document.getElementById('modelName').innerText = data.aiModel || '未知模型';
+            document.getElementById('scoreDisplay').innerText = (data.score || '--') + '/100';
+            document.getElementById('userSqlDisplay').innerText = data.userSql || '--';
+
+            // 解析并渲染 AI 报告
+            renderAiAnalysis(data.aiAnalysis || '');
+
+            // 切换状态
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('detailContent').classList.remove('hidden');
+
+        } catch (error) {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('errorState').classList.remove('hidden');
+            document.getElementById('errorMsg').innerText = error.message;
+        }
+    }
+
+    function renderAiAnalysis(aiText) {
+        if (!aiText) return;
+
+        const extractSection = (text, keyword) => {
+            const regex = new RegExp(`【${keyword}】([\\s\\S]*?)(?=【|$)`, 'i');
+            const match = text.match(regex);
+            return match ? match[1].trim() : '';
+        };
+
+        let prefixMatch = aiText.match(/^([\s\S]*?)(?=【|$)/);
+        let reasoningHtml = prefixMatch && prefixMatch[1].trim() !== '' ? marked.parse(prefixMatch[1].trim()) : '';
+        
+        let scoreText = extractSection(aiText, 'SQL评分');
+        let analysisText = extractSection(aiText, '问题分析');
+        let suggestText = extractSection(aiText, '优化建议');
+        let sqlText = extractSection(aiText, '优化后SQL');
+
+        if (!scoreText && !analysisText && !suggestText) {
+            // 如果没匹配到模块化格式，兜底直接展示全部
+            document.getElementById('aiAnalysisBox').innerHTML = marked.parse(aiText);
+            document.getElementById('aiAnalysisBox').classList.remove('hidden');
+        } else {
+            // 模块化展示
+            if (reasoningHtml) {
+                document.getElementById('reasoningBox').innerHTML = reasoningHtml;
+                document.getElementById('reasoningBox').classList.remove('hidden');
+            }
+            if (scoreText) {
+                document.getElementById('scoreDetailBox').innerHTML = marked.parse(scoreText);
+                document.getElementById('scoreDetailWrapper').classList.remove('hidden');
+            }
+            if (analysisText) {
+                document.getElementById('analysisBox').innerHTML = marked.parse(analysisText);
+                document.getElementById('analysisWrapper').classList.remove('hidden');
+            }
+            if (suggestText) {
+                document.getElementById('suggestBox').innerHTML = marked.parse(suggestText);
+                document.getElementById('suggestWrapper').classList.remove('hidden');
+            }
+            if (sqlText) {
+                document.getElementById('sqlBox').innerHTML = marked.parse(sqlText);
+                document.getElementById('sqlWrapper').classList.remove('hidden');
+            }
+        }
+    }
+
+    // 复制文本到剪贴板
+    function copyToClipboard(elementId, btnElement) {
+        const element = document.getElementById(elementId);
+        const text = element.innerText || element.textContent;
+        
+        const updateBtnState = () => {
+            const originalHtml = btnElement.innerHTML;
+            btnElement.innerHTML = `<svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>已复制`;
+            btnElement.classList.add('text-emerald-400', 'border-emerald-500/50', 'bg-emerald-900/30');
+            btnElement.classList.remove('text-indigo-400', 'border-indigo-500/30', 'bg-indigo-900/30');
+            
+            setTimeout(() => {
+                btnElement.innerHTML = originalHtml;
+                btnElement.classList.remove('text-emerald-400', 'border-emerald-500/50', 'bg-emerald-900/30');
+                btnElement.classList.add('text-indigo-400', 'border-indigo-500/30', 'bg-indigo-900/30');
+            }, 2000);
+        };
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(updateBtnState).catch(err => {
+                console.error('复制失败:', err);
+                fallbackCopyTextToClipboard(text, updateBtnState);
+            });
+        } else {
+            fallbackCopyTextToClipboard(text, updateBtnState);
+        }
+    }
+
+    function fallbackCopyTextToClipboard(text, onSuccess) {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        // 避免滚动到页面底部
+        textArea.style.top = "0";
+        textArea.style.left = "0";
+        textArea.style.position = "fixed";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            const successful = document.execCommand('copy');
+            if (successful) {
+                onSuccess();
+            } else {
+                alert('复制失败，请手动复制');
+            }
+        } catch (err) {
+            console.error('Fallback: 复制失败', err);
+            alert('复制失败，请手动复制');
+        }
+        document.body.removeChild(textArea);
+    }
+</script>
+</body>
+</html>

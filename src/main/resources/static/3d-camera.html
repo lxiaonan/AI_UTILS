@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Gemini 3D 镜头控图</title>
+    <link rel="icon" type="image/png" href="/logo/ai%E5%9B%BE%E6%A0%87.png">
+    <link rel="apple-touch-icon" href="/logo/ai%E5%9B%BE%E6%A0%87.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: radial-gradient(circle at 50% 20%, #1e1b4b 0%, #05060a 55%, #000 100%); color: #e2e8f0; min-height: 100vh; }
+        .glass-nav { background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(18px); border-bottom: 1px solid rgba(148, 163, 184, 0.12); }
+        .glass-panel { background: rgba(30, 41, 59, 0.5); backdrop-filter: blur(12px); border: 1px solid rgba(148, 163, 184, 0.15); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); transition: all 0.3s ease; }
+        .glass-panel:hover { border-color: rgba(99, 102, 241, 0.3); box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4); }
+        .gradient-text { background: linear-gradient(to right, #818cf8, #c084fc, #f472b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .neon-border { transition: all 0.3s ease; }
+        .neon-border:focus-within { box-shadow: 0 0 15px rgba(99, 102, 241, 0.5); border-color: #6366f1; transform: scale(1.01); }
+        .btn-glow { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-glow:hover { box-shadow: 0 0 25px rgba(99, 102, 241, 0.6); transform: translateY(-2px) scale(1.02); }
+        .btn-glow:active { transform: translateY(1px) scale(0.98); }
+
+        .panel {
+            background-color: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            border-radius: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        .panel:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        /* 自定义滑块样式 */
+        .slider-thumb::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+            border: 2px solid #6366f1;
+        }
+
+        #azimuth::-webkit-slider-runnable-track {
+            background: linear-gradient(90deg, #6366f1, #a855f7);
+            height: 6px;
+            border-radius: 3px;
+        }
+
+        #elevation::-webkit-slider-runnable-track {
+            background: linear-gradient(90deg, #ec4899, #f43f5e);
+            height: 6px;
+            border-radius: 3px;
+        }
+
+        #distance::-webkit-slider-runnable-track {
+            background: linear-gradient(90deg, #f59e0b, #f97316);
+            height: 6px;
+            border-radius: 3px;
+        }
+
+        .rotate-270 {
+            transform: rotate(270deg);
+        }
+
+        .rotate-90 {
+            transform: rotate(90deg);
+        }
+    </style>
+</head>
+
+<body class="font-sans flex flex-col relative overflow-x-hidden">
+    <!-- Navbar -->
+    <nav class="glass-nav sticky top-0 z-50 mb-6">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex h-16 items-center justify-between">
+                <div class="flex items-center gap-6 h-full">
+                    <a href="/" class="flex items-center" title="AI Platform">
+                        <img src="/logo/ai%E5%9B%BE%E6%A0%87.png" class="w-9 h-9 rounded-2xl shadow-[0_0_24px_rgba(99,102,241,0.55)] ring-1 ring-indigo-400/30" alt="AI">
+                    </a>
+                    <a href="/" class="text-slate-400 hover:text-indigo-400 font-medium transition">SQL 优化</a>
+                    <a href="/history.html" class="text-slate-400 hover:text-indigo-400 font-medium transition">优化历史</a>
+                    <a href="/image.html" class="text-slate-400 hover:text-indigo-400 font-medium transition">图像生成</a>
+                    <a href="/3d-camera.html" class="text-indigo-400 font-bold border-b-2 border-indigo-500 h-full flex items-center transition">3D 镜头控图</a>
+                    <a href="/voice.html" class="text-slate-400 hover:text-indigo-400 font-medium transition">语音生成</a>
+                </div>
+
+                <div id="userArea" class="flex items-center gap-3 text-sm">
+                    <a id="loginLink" href="/login.html" class="hidden text-slate-400 hover:text-indigo-400 font-medium transition">登录</a>
+                    <a id="registerLink" href="/register.html" class="hidden text-slate-400 hover:text-indigo-400 font-medium transition">注册</a>
+                    <div id="userInfo" class="hidden items-center gap-3">
+                        <div class="text-slate-300">
+                            <span class="font-bold text-slate-200" id="navUsername"></span>
+                            <span class="text-slate-500 ml-2">AI 次数</span>
+                            <span class="font-bold text-indigo-400" id="navUseCount"></span>
+                        </div>
+                        <button id="logoutBtn" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition border border-slate-700">退出</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-[1400px] mx-auto px-6 py-8 flex-grow w-full">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-end justify-between gap-6 flex-wrap mb-8">
+                <div>
+                    <h1 class="text-4xl font-extrabold gradient-text tracking-tight">3D 镜头控制器</h1>
+                    <p class="text-xs text-slate-500 uppercase tracking-widest mt-2">Interactive Lens Matrix v1.0</p>
+                </div>
+            </div>
+
+            <div class="glass-panel px-6 py-5 flex items-center justify-between gap-4 rounded-2xl">
+                <div class="flex items-center gap-3 text-lg font-bold text-slate-200">
+                    <svg class="w-6 h-6 text-indigo-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" />
+                    </svg>
+                    模型选择
+                </div>
+                <select id="modelSelect"
+                    class="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 p-3 w-72 shadow-inner outline-none transition-all">
+                    <option value="qwen-image-2.0-pro">Qwen Image 2.0 Pro</option>
+                    <option value="qwen-image-2.0" selected>Qwen Image 2.0 (默认)</option>
+                    <option value="qwen-image-max">Qwen Image Max</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            <!-- Left Column: Reference Image -->
+            <div class="lg:col-span-4 flex flex-col gap-4 h-full">
+                <div class="panel overflow-hidden relative group aspect-[9/16] flex-grow flex flex-col min-h-[600px]">
+                    <input type="file" id="imageUpload" accept="image/*" class="hidden" />
+
+                    <div id="uploadPlaceholder"
+                        class="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-[#1e293b] transition p-8 text-center"
+                        onclick="document.getElementById('imageUpload').click()">
+                        <div
+                            class="w-20 h-20 bg-[#1e293b] rounded-full flex items-center justify-center mb-6 border-2 border-dashed border-slate-600">
+                            <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                            </svg>
+                        </div>
+                        <span class="text-slate-300 font-medium">点击或拖拽上传参考图</span>
+                        <span class="text-xs text-slate-500 mt-2">支持 JPG, PNG, WEBP</span>
+                    </div>
+
+                    <div id="previewContainer" class="hidden w-full h-full relative">
+                        <img id="previewImage"
+                            class="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                            onclick="document.getElementById('imageUpload').click()" title="点击重新选择图片" />
+                        <div
+                            class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div
+                                class="bg-black/60 text-white px-4 py-2 rounded-full text-sm font-medium backdrop-blur-sm">
+                                点击重新上传
+                            </div>
+                        </div>
+                        <div id="previewBadge"
+                            class="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs text-white font-medium pointer-events-none">
+                            参考图</div>
+                        <button id="clearImageBtn"
+                            class="absolute top-4 right-4 bg-slate-800/90 p-2 rounded-full shadow-lg text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-slate-700"
+                            title="清除图片">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center Column: 3D Controller -->
+            <div class="lg:col-span-4 flex flex-col gap-6 h-full">
+                <div class="panel p-6 flex flex-col gap-8 min-h-[600px]">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-bold text-slate-200">视角交互面板</span>
+                        <div class="flex gap-2 text-slate-400 text-[10px] items-center">
+                            <span>直接拖拽球体进行旋转</span>
+                        </div>
+                    </div>
+
+                    <!-- The Sphere and Vertical Sliders Row -->
+                    <div class="grid grid-cols-12 items-center gap-4 flex-grow">
+                        <!-- Angle Slider (Vertical - Left) -->
+                        <div class="col-span-2 flex flex-col items-center h-48 justify-between py-4">
+                            <div class="text-[10px] text-slate-400 -rotate-90 whitespace-nowrap -translate-y-4">角度</div>
+                            <input type="range" id="elevation" min="-90" max="90" value="20"
+                                class="w-32 rotate-270 appearance-none bg-slate-700 h-1.5 rounded-full accent-pink-500 cursor-pointer slider-thumb" />
+                        </div>
+
+                        <!-- Central Sphere (SVG) -->
+                        <div class="col-span-8 flex flex-col items-center justify-center group relative w-full aspect-square"
+                            id="sphereContainer">
+                            <svg viewBox="0 0 200 200" class="w-full h-full drop-shadow-md">
+                                <!-- Background Circle -->
+                                <circle cx="100" cy="100" r="90" fill="#0b0f19" stroke="#334155" stroke-width="2" />
+
+                                <!-- Longitude Lines (Vertical) -->
+                                <ellipse cx="100" cy="100" rx="45" ry="90" fill="none" stroke="#334155"
+                                    stroke-width="1.5" />
+                                <ellipse cx="100" cy="100" rx="15" ry="90" fill="none" stroke="#334155"
+                                    stroke-width="1.5" />
+                                <line x1="100" y1="10" x2="100" y2="190" stroke="#475569" stroke-width="1.5"
+                                    stroke-dasharray="4 4" />
+
+                                <!-- Latitude Lines (Horizontal) -->
+                                <ellipse cx="100" cy="100" rx="90" ry="30" fill="none" stroke="#334155"
+                                    stroke-width="1.5" />
+                                <line x1="10" y1="100" x2="190" y2="100" stroke="#475569" stroke-width="1.5"
+                                    stroke-dasharray="4 4" />
+
+                                <!-- Center Object Placeholder -->
+                                <rect x="85" y="80" width="30" height="40" rx="4" fill="#1e293b" stroke="#64748b"
+                                    stroke-width="2" opacity="0.8" />
+                                <text x="100" y="105" font-family="sans-serif" font-size="14" font-weight="bold"
+                                    fill="#94a3b8" text-anchor="middle">F</text>
+
+                                <!-- The Camera Icon (Will be positioned via JS) -->
+                                <g id="svgCamera" transform="translate(160, 60)">
+                                    <circle cx="0" cy="0" r="16" fill="#fef08a" stroke="#f59e0b" stroke-width="2"
+                                        opacity="0.4" />
+                                    <circle cx="0" cy="0" r="12" fill="#fbbf24" />
+                                    <path
+                                        d="M-5 -3 L-5 -5 L-2 -5 L-1 -7 L1 -7 L2 -5 L5 -5 L5 -3 Z M-5 -3 L5 -3 L5 4 L-5 4 Z"
+                                        fill="white" />
+                                    <circle cx="0" cy="0" r="2.5" fill="white" />
+                                </g>
+                            </svg>
+                        </div>
+
+                        <!-- Shot Slider (Vertical - Right) -->
+                        <div class="col-span-2 flex flex-col items-center h-48 justify-between py-4">
+                            <div class="text-[10px] text-slate-400 rotate-90 whitespace-nowrap -translate-y-4">焦距</div>
+                            <input type="range" id="distance" min="0.5" max="2.0" step="0.1" value="0.8"
+                                class="w-32 rotate-90 appearance-none bg-slate-700 h-1.5 rounded-full accent-orange-500 cursor-pointer slider-thumb" />
+                        </div>
+                    </div>
+
+                    <!-- Horizontal Slider: View (Azimuth) -->
+                    <div class="w-full mt-4 flex flex-col items-center gap-2">
+                        <div class="text-[10px] text-slate-400">水平旋转 (360°)</div>
+                        <input type="range" id="azimuth" min="0" max="360" value="45"
+                            class="w-full appearance-none bg-slate-700 h-1.5 rounded-full accent-blue-500 cursor-pointer slider-thumb" />
+                    </div>
+
+                    <!-- Labels Readout -->
+                    <div class="space-y-4 pt-4 border-t border-slate-700 mt-auto">
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="bg-slate-800 p-3 rounded-xl text-center border border-slate-700">
+                                <div class="text-[10px] text-slate-400 uppercase">视角</div>
+                                <div class="text-xs font-bold text-slate-200 mt-1" id="aziLabel">3/4 View</div>
+                            </div>
+                            <div class="bg-slate-800 p-3 rounded-xl text-center border border-slate-700">
+                                <div class="text-[10px] text-slate-400 uppercase">角度</div>
+                                <div class="text-xs font-bold text-slate-200 mt-1" id="eleLabel">High Angle</div>
+                            </div>
+                            <div class="bg-slate-800 p-3 rounded-xl text-center border border-slate-700">
+                                <div class="text-[10px] text-slate-400 uppercase">景别</div>
+                                <div class="text-xs font-bold text-slate-200 mt-1" id="distLabel">Medium Shot</div>
+                            </div>
+                        </div>
+
+                        <button id="generateBtn"
+                            class="w-full py-5 rounded-2xl flex flex-col items-center justify-center gap-1 font-bold transition-all shadow-lg bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98] btn-glow">
+                            <span class="text-lg">应用镜头参数</span>
+                            <span class="text-[10px] opacity-70 font-normal">QWEN IMAGE 2.0 ENGINE</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Result Image -->
+            <div class="lg:col-span-4 flex flex-col gap-4 h-full">
+                <div class="panel overflow-hidden relative aspect-[9/16] flex items-center justify-center flex-grow min-h-[600px]"
+                    id="resultArea">
+                    <div class="flex flex-col items-center gap-3 opacity-40 px-8 text-center" id="resultPlaceholder">
+                        <div
+                            class="w-20 h-20 bg-slate-800 rounded-3xl flex items-center justify-center border-2 border-dashed border-slate-600">
+                            <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z">
+                                </path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-slate-400 uppercase tracking-tighter">输出预览</p>
+                            <p class="text-[10px] text-slate-500 mt-1">配置相机并点击生成</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sliders Logic
+        const azimuth = document.getElementById('azimuth');
+        const elevation = document.getElementById('elevation');
+        const distance = document.getElementById('distance');
+        const svgCamera = document.getElementById('svgCamera');
+        const aziLabel = document.getElementById('aziLabel');
+        const eleLabel = document.getElementById('eleLabel');
+        const distLabel = document.getElementById('distLabel');
+
+        function normalizeAzimuth(value) {
+            const angle = Number.parseInt(value, 10);
+            return ((angle % 360) + 360) % 360;
+        }
+
+        function getAzimuthDescForPrompt(value) {
+            const angle = normalizeAzimuth(value);
+            if (angle >= 337.5 || angle < 22.5) return `front view (${angle}°)`;
+            if (angle < 67.5) return `front-right 3/4 view (${angle}°)`;
+            if (angle < 112.5) return `right side view (${angle}°)`;
+            if (angle < 157.5) return `back-right 3/4 view (${angle}°)`;
+            if (angle < 202.5) return `back view (${angle}°)`;
+            if (angle < 247.5) return `back-left 3/4 view (${angle}°)`;
+            if (angle < 292.5) return `left side view (${angle}°)`;
+            return `front-left 3/4 view (${angle}°)`;
+        }
+
+        function getAzimuthUIDesc(value) {
+            const angle = normalizeAzimuth(value);
+            if (angle >= 337.5 || angle < 22.5) return "Front (正视)";
+            if (angle < 67.5) return "Front 3/4 (右前)";
+            if (angle < 112.5) return "Profile (右侧)";
+            if (angle < 157.5) return "Back 3/4 (右后)";
+            if (angle < 202.5) return "Back (后视)";
+            if (angle < 247.5) return "Back 3/4 (左后)";
+            if (angle < 292.5) return "Profile (左侧)";
+            return "Front 3/4 (左前)";
+        }
+
+        function getElevationDescForPrompt(value) {
+            const angle = Number.parseInt(value, 10);
+            if (angle >= 55) return "strong top-down view";
+            if (angle >= 20) return "high angle view";
+            if (angle <= -55) return "strong low angle view";
+            if (angle <= -20) return "low angle view";
+            return "eye-level view";
+        }
+
+        function getElevationUIDesc(value) {
+            const angle = Number.parseInt(value, 10);
+            if (angle >= 55) return "Bird's Eye (强俯视)";
+            if (angle >= 20) return "High Angle (俯视)";
+            if (angle <= -55) return "Worm's Eye (强仰视)";
+            if (angle <= -20) return "Low Angle (仰视)";
+            return "Eye Level (平视)";
+        }
+
+        function getDistanceDescForPrompt(value) {
+            const amount = Number.parseFloat(value);
+            if (amount < 0.8) return "medium shot";
+            if (amount < 1.35) return "medium shot";
+            if (amount < 1.75) return "full body shot";
+            return "wide shot";
+        }
+
+        function getDistanceUIDesc(value) {
+            const amount = Number.parseFloat(value);
+            if (amount < 0.8) return "Close-up (特写)";
+            if (amount < 1.35) return "Medium (中景)";
+            if (amount < 1.75) return "Full Body (全身)";
+            return "Long Shot (远景)";
+        }
+
+        function updateCameraVisualization() {
+            const angle = normalizeAzimuth(azimuth.value);
+            const tilt = Number.parseInt(elevation.value, 10);
+            const shot = Number.parseFloat(distance.value);
+
+            aziLabel.innerText = getAzimuthUIDesc(angle);
+            eleLabel.innerText = getElevationUIDesc(tilt);
+            distLabel.innerText = getDistanceUIDesc(shot);
+
+            const radAzi = angle * (Math.PI / 180);
+            const radEle = tilt * (Math.PI / 180);
+            const centerX = 100;
+            const centerY = 100;
+            const orbitRadius = 90;
+            const perspectiveYOffset = 18;
+
+            const x3d = Math.sin(radAzi) * Math.cos(radEle);
+            const y3d = -Math.sin(radEle);
+            const z3d = Math.cos(radAzi) * Math.cos(radEle);
+
+            const x = centerX + x3d * orbitRadius;
+            const y = centerY + y3d * orbitRadius * 0.78 + z3d * perspectiveYOffset;
+            const baseScale = 1.22 - ((shot - 0.5) / 1.5) * 0.5;
+            const depthScale = 0.78 + ((z3d + 1) / 2) * 0.34;
+            const opacity = 0.35 + ((z3d + 1) / 2) * 0.65;
+
+            svgCamera.setAttribute(
+                'transform',
+                `translate(${x.toFixed(2)}, ${y.toFixed(2)}) scale(${(baseScale * depthScale).toFixed(3)})`
+            );
+            svgCamera.style.opacity = opacity.toFixed(2);
+        }
+
+        azimuth.addEventListener('input', updateCameraVisualization);
+        elevation.addEventListener('input', updateCameraVisualization);
+        distance.addEventListener('input', updateCameraVisualization);
+
+        // Initialize
+        updateCameraVisualization();
+
+        async function ensureLogin() {
+            try {
+                const res = await fetch('/api/auth/me');
+                const data = await res.json();
+                if (!data || !data.success) {
+                    sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+                    window.location.href = '/login.html';
+                    return false;
+                }
+                return true;
+            } catch (e) {
+                sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+                window.location.href = '/login.html';
+                return false;
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', ensureLogin);
+
+        // Upload Logic
+        let uploadedImageBase64 = null;
+        let uploadedImageUrl = null;
+
+        document.getElementById('imageUpload').addEventListener('change', async function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // 本地预览
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                document.getElementById('uploadPlaceholder').classList.add('hidden');
+                const preview = document.getElementById('previewImage');
+                preview.src = event.target.result;
+                document.getElementById('previewContainer').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+
+            // 上传到后端获取 Base64 和 URL
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                const res = await fetch('/api/upload/image', { method: 'POST', body: formData });
+                if (res.status === 401) {
+                    sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+                    window.location.href = '/login.html';
+                    return;
+                }
+                const data = await res.json();
+                if (data.success) {
+                    uploadedImageUrl = data.url;
+                    uploadedImageBase64 = data.base64;
+                } else {
+                    alert('图片处理失败: ' + data.message);
+                }
+            } catch (err) {
+                alert('图片上传异常: ' + err.message);
+            }
+
+            // 允许重复上传同一张图
+            e.target.value = '';
+        });
+
+        // 清除图片功能
+        document.getElementById('clearImageBtn').addEventListener('click', function (e) {
+            e.stopPropagation();
+            document.getElementById('imageUpload').value = '';
+            uploadedImageBase64 = null;
+            uploadedImageUrl = null;
+            document.getElementById('previewContainer').classList.add('hidden');
+            document.getElementById('uploadPlaceholder').classList.remove('hidden');
+        });
+
+        // Generate Logic
+        let currentResultUrl = null;
+
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            if (!uploadedImageBase64) {
+                alert('请先上传一张原始图片！');
+                return;
+            }
+
+            const model = document.getElementById('modelSelect').value;
+            const azi = azimuth.value;
+            const ele = elevation.value;
+            const dist = distance.value;
+
+            const prompt = `Use the input image as the ONLY reference.
+
+Reconstruct the subject from a CLEARLY DIFFERENT camera angle.
+
+The original viewpoint is NOT allowed.
+
+Camera transformation:
+- rotate the camera to ${getAzimuthDescForPrompt(azi)}
+- camera elevation: ${getElevationDescForPrompt(ele)}
+- camera distance: ${getDistanceDescForPrompt(dist)}
+
+The new viewpoint must be visually and structurally different from the input image.
+
+The perspective change should be obvious, not subtle.
+
+Keep identity identical.
+
+Ensure correct 3D perspective and geometry.
+
+IMPORTANT:
+- MUST change viewpoint
+- DO NOT keep original angle
+- DO NOT generate a similar view
+- ensure strong perspective transformation`;
+
+            const resultArea = document.getElementById('resultArea');
+            const btn = document.getElementById('generateBtn');
+
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            resultArea.innerHTML = `
+            <div class="text-center text-indigo-500">
+                <svg class="animate-spin h-12 w-12 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <p class="font-mono text-sm tracking-wider">正在渲染 3D 视角...</p>
+                <p class="text-[10px] text-slate-400 mt-2">AZ: ${azi}° | EL: ${ele}° | DIST: ${dist}X</p>
+            </div>`;
+
+            let requestBody = {
+                model: model,
+                input: {
+                    messages: [
+                        {
+                            role: "user",
+                            content: [
+                                { image: uploadedImageBase64 },
+                                { text: prompt }
+                            ]
+                        }
+                    ]
+                },
+                parameters: { n: 1 }
+            };
+
+            let queryParams = "?localUrl=" + encodeURIComponent(uploadedImageUrl) +
+                "&azimuth=" + azi +
+                "&elevation=" + ele +
+                "&distance=" + dist;
+
+            try {
+                const res = await fetch('/api/camera/generate' + queryParams, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+                if (res.status === 401) {
+                    sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+                    window.location.href = '/login.html';
+                    return;
+                }
+                const data = await res.json();
+
+                let imageUrls = [];
+                if (data.output && data.output.results) {
+                    imageUrls = data.output.results.map(r => r.url).filter(Boolean);
+                } else if (data.output && data.output.choices && data.output.choices[0].message && data.output.choices[0].message.content) {
+                    const contents = data.output.choices[0].message.content;
+                    if (Array.isArray(contents)) {
+                        imageUrls = contents.map(c => c.image).filter(Boolean);
+                    }
+                }
+
+                if (imageUrls.length > 0) {
+                    currentResultUrl = imageUrls[0];
+                    resultArea.innerHTML = `
+                    <img src="${currentResultUrl}" class="w-full h-full object-cover rounded-3xl shadow-[0_0_40px_rgba(79,70,229,0.15)] cursor-pointer hover:scale-[1.02] transition-transform" onclick="window.open('${currentResultUrl}', '_blank')" title="点击查看大图">
+                `;
+                } else {
+                    resultArea.innerHTML = `<div class="text-rose-500 bg-rose-50 p-6 rounded-2xl border border-rose-200">渲染失败: ${data.message || '未知错误'}</div>`;
+                }
+            } catch (err) {
+                resultArea.innerHTML = `<div class="text-rose-500 bg-rose-50 p-6 rounded-2xl border border-rose-200">请求异常: ${err.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        });
+
+        // 下载功能
+        async function downloadResult() {
+            if (!currentResultUrl) {
+                alert('请先生成图片后再下载！');
+                return;
+            }
+            try {
+                const response = await fetch(currentResultUrl, { mode: 'cors' });
+                const blob = await response.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = `3D_render_${new Date().getTime()}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(blobUrl);
+            } catch (error) {
+                const a = document.createElement('a');
+                a.href = currentResultUrl;
+                a.download = `3D_render_${new Date().getTime()}.png`;
+                a.target = '_blank';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        }
+    </script>
+</body>
+
+</html>

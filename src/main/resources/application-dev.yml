@@ -1,0 +1,36 @@
+server:
+  port: 8080
+
+spring:
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 0
+  session:
+    store-type: redis
+    redis:
+      flush-mode: on_save
+      namespace: spring:session:ai_platform
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DB:ai_sql_platform}?characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=GMT%2B8&nullCatalogMeansCurrent=true&allowPublicKeyRetrieval=true
+    username: root
+    password: xxxx # 请根据本地实际情况修改密码
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      # mode: always # 每次启动时自动执行 schema.sql 脚本建表
+      mode: NEVER # 每次启动时自动执行 schema.sql 脚本建表
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # 打印 SQL 日志
+    map-underscore-to-camel-case: true
+
+aliyun:
+  # 从环境变量 ALIYUN_API_KEY 获取，如果没有设置则为空
+  api-key: xxxx
