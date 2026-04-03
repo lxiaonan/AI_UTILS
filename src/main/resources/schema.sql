@@ -91,6 +91,32 @@ DEALLOCATE PREPARE stmt;
 SET @col_exists := (
     SELECT COUNT(*)
     FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'voice_generate_record' AND COLUMN_NAME = 'language_type'
+);
+SET @stmt := IF(@col_exists = 0,
+    'ALTER TABLE `voice_generate_record` ADD COLUMN `language_type` varchar(50) DEFAULT NULL COMMENT ''Language type'' AFTER `ai_model`',
+    'SELECT 1'
+);
+PREPARE stmt FROM @stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'voice_generate_record' AND COLUMN_NAME = 'voice_code'
+);
+SET @stmt := IF(@col_exists = 0,
+    'ALTER TABLE `voice_generate_record` ADD COLUMN `voice_code` varchar(100) DEFAULT NULL COMMENT ''Voice code'' AFTER `language_type`',
+    'SELECT 1'
+);
+PREPARE stmt FROM @stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'image_generate_record' AND COLUMN_NAME = 'user_id'
 );
 SET @stmt := IF(@col_exists = 0,
@@ -160,6 +186,111 @@ SET @idx_exists := (
 );
 SET @stmt := IF(@idx_exists = 0,
     'CREATE INDEX `idx_camera_user_time` ON `camera_generate_record` (`user_id`, `create_time`)',
+    'SELECT 1'
+);
+PREPARE stmt FROM @stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+CREATE TABLE IF NOT EXISTS `video_generate_record` (
+    `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+    `user_id` bigint(20) DEFAULT NULL COMMENT 'User ID',
+    `user_prompt` text NOT NULL COMMENT 'Video generation payload',
+    `ai_model` varchar(50) NOT NULL COMMENT 'Video model',
+    `task_id` varchar(100) DEFAULT NULL COMMENT 'Async task ID',
+    `task_status` varchar(40) DEFAULT 'PENDING' COMMENT 'Task status',
+    `video_url` text COMMENT 'Generated video URL',
+    `raw_response` text COMMENT 'Raw API response',
+    `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT 'Create time',
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Video generation history';
+
+SET @col_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'video_generate_record' AND COLUMN_NAME = 'user_id'
+);
+SET @stmt := IF(@col_exists = 0,
+    'ALTER TABLE `video_generate_record` ADD COLUMN `user_id` bigint(20) DEFAULT NULL COMMENT ''User ID''',
+    'SELECT 1'
+);
+PREPARE stmt FROM @stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'video_generate_record' AND COLUMN_NAME = 'task_id'
+);
+SET @stmt := IF(@col_exists = 0,
+    'ALTER TABLE `video_generate_record` ADD COLUMN `task_id` varchar(100) DEFAULT NULL COMMENT ''Task ID'' AFTER `ai_model`',
+    'SELECT 1'
+);
+PREPARE stmt FROM @stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'video_generate_record' AND COLUMN_NAME = 'task_status'
+);
+SET @stmt := IF(@col_exists = 0,
+    'ALTER TABLE `video_generate_record` ADD COLUMN `task_status` varchar(40) DEFAULT ''PENDING'' COMMENT ''Task status'' AFTER `task_id`',
+    'SELECT 1'
+);
+PREPARE stmt FROM @stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @col_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'video_generate_record' AND COLUMN_NAME = 'video_url'
+);
+SET @stmt := IF(@col_exists = 0,
+    'ALTER TABLE `video_generate_record` ADD COLUMN `video_url` text COMMENT ''Video URL'' AFTER `task_status`',
+    'SELECT 1'
+);
+PREPARE stmt FROM @stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @idx_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'video_generate_record' AND INDEX_NAME = 'idx_video_user_time'
+);
+SET @stmt := IF(@idx_exists = 0,
+    'CREATE INDEX `idx_video_user_time` ON `video_generate_record` (`user_id`, `create_time`)',
+    'SELECT 1'
+);
+PREPARE stmt FROM @stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+CREATE TABLE IF NOT EXISTS `marketing_generate_record` (
+    `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+    `user_id` bigint(20) DEFAULT NULL COMMENT 'User ID',
+    `record_type` varchar(40) NOT NULL COMMENT 'marketing_copy / slogan',
+    `product_name` varchar(255) NOT NULL COMMENT 'Product name',
+    `targets` varchar(255) DEFAULT NULL COMMENT 'Platforms or generate types',
+    `ai_model` varchar(80) NOT NULL COMMENT 'AI model',
+    `input_payload` mediumtext COMMENT 'Input payload JSON',
+    `result_payload` mediumtext COMMENT 'Result payload JSON',
+    `status` varchar(20) DEFAULT 'SUCCESS' COMMENT 'SUCCESS / FAILED',
+    `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT 'Create time',
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Marketing generation history';
+
+SET @idx_exists := (
+    SELECT COUNT(*)
+    FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'marketing_generate_record' AND INDEX_NAME = 'idx_marketing_user_time'
+);
+SET @stmt := IF(@idx_exists = 0,
+    'CREATE INDEX `idx_marketing_user_time` ON `marketing_generate_record` (`user_id`, `create_time`)',
     'SELECT 1'
 );
 PREPARE stmt FROM @stmt;

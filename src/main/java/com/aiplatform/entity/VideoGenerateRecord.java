@@ -8,23 +8,23 @@ import lombok.Data;
 import java.util.Date;
 
 @Data
-@TableName("voice_generate_record")
-public class VoiceGenerateRecord {
+@TableName("video_generate_record")
+public class VideoGenerateRecord {
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
     private Long userId;
 
-    private String userText;
+    private String userPrompt;
 
     private String aiModel;
 
-    private String languageType;
+    private String taskId;
 
-    private String voiceCode;
+    private String taskStatus;
 
-    private String audioUrl;
+    private String videoUrl;
 
     private String rawResponse;
 

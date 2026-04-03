@@ -1,11 +1,12 @@
 package com.aiplatform.config;
 
+import java.nio.charset.StandardCharsets;
+
+import org.springframework.web.servlet.HandlerInterceptor;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import org.springframework.web.servlet.HandlerInterceptor;
-
-import java.nio.charset.StandardCharsets;
 
 public class AuthInterceptor implements HandlerInterceptor {
 
@@ -38,4 +39,3 @@ public class AuthInterceptor implements HandlerInterceptor {
         return true;
     }
 }
-
